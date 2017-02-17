@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>MagicHome</title>
+		<link rel="stylesheet" type="text/css" href="style.css">
+		<script src="https://use.fontawesome.com/6872ced814.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+		<meta charset="UTF-8">
+
+		<script type="text/javascript">
+			function showError(type){
+				switch(type){
+					case "APIconnection":
+						$('#controls').html('<div class="error err-connection" onClick="window.location.reload()">Błąd połączenia z serwerem API</div>');
+						break;
+				}
+			}
+
+			$(document).ready(function() {
+				//Get all temperatures
+				$.get('http://192.168.100.28:3000/temp', function(temps){
+					console.log("GOT all temperatures");
+					console.log("=====================");
+
+					//Generate buttons for lights
+					for(i in temps){
+						$('#controls').append('<div class="element"><div class="element-label">' + temps[i].name + '</div><div class="element-info" id="temp_' + temps[i].id + '" data-id=' + temps[i].id + ' data-name="' + temps[i].name +'">' + temps[i].temp + ' &#176;C</div></div>');
+						if(temps[i].temp < 19) $('#temp_' + temps[i].id).addClass("temp-cold");
+						else if(temps[i].temp < 24) $('#temp_' + temps[i].id).addClass("temp-normal");
+						else $('#temp_' + temps[i].id).addClass("temp-hot");
+					}
+				}).fail(function(){
+					showError("APIconnection");
+				  });
+			});
+
+		</script>
+	</head>
+	<body>
+		<div id="navbar">
+			<ul>
+				<li><a href="index.html" class="fa fa-navicon"></a></li>
+				<li><a href="lights.html" class="fa fa-lightbulb-o"></a></li>
+				<li><a href="temp.html" class="fa fa-thermometer-half"></a></li>
+			</ul>
+		</div>
+		<div id="controls">
+			
+		</div>
+	</body>
+</html>	
