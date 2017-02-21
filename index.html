@@ -5,19 +5,33 @@
 		<link rel="stylesheet" type="text/css" href="style.css">
 		<script src="https://use.fontawesome.com/6872ced814.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+		<script src="error.js"></script>
 		<meta charset="UTF-8">
-		<script type="text/javascript" src="all.js"></script>
+		<meta name="theme-color" content="#2c3e50" />
 	</head>
 	<body>
 		<div id="navbar">
 			<ul>
-				<li><a href="index.html" class="fa fa-navicon"></a></li>
-				<li><a href="lights.html" class="fa fa-lightbulb-o"></a></li>
-				<li><a href="temp.html" class="fa fa-thermometer-half"></a></li>
+				<li><a href="index.html" class="fa fa-navicon" onclick="window.location.reload()"></a></li>
+				<li><a href="#lights" class="fa fa-lightbulb-o" onclick="window.location.reload()"></a></li>
+				<li><a href="#temp" class="fa fa-thermometer-half" onclick="window.location.reload()"></a></li>
 			</ul>
 		</div>
 		<div id="controls">
 			
 		</div>
+
+		<script>
+			if(window.location.hash) {
+				var site = window.location.hash.substring(1); //Puts hash in variable, and removes the # character
+				if(site == "lights"){
+					$("body").append('<script type="text/javascript" src="lights.js"></' + 'script>');
+				}else if(site == "temp"){
+					$("body").append('<script type="text/javascript" src="temp.js"></' + 'script>');
+				}
+			}else{
+				$("body").append('<script type="text/javascript" src="all.js"></' + 'script>');
+			}
+		</script>
 	</body>
 </html>	

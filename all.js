@@ -1,73 +1,49 @@
-function showError(type){
-	switch(type){
-		case "APIconnection":
-			$('#controls').html('<div class="error err-connection" onClick="window.location.reload()">Błąd połączenia z serwerem API</div>');
-			break;
-	}
-}
-
-function showElements(rooms, elements){
+function drawRooms(rooms){
 	for(r in rooms){
-		$('#controls').append('<div class="room room_' + rooms[r] + '" data-name="' + rooms[r] + '"><div class="room-label">' + rooms[r] + '</div>');
-
-		for(type in elements){
-			for(i in elements[type]){
-				if(elements[type][i].room == rooms[r]){
-					switch(type){
-						case "lights":
-						$('.room_' + rooms[r]).append('<div class="element"><div class="element-label">' + elements[type][i].name + '</div><div class="element-button" id="led_' + elements[type][i].id + '" data-id=' + elements[type][i].id + ' data-name="' + elements[type][i].name +'"><i class=" fa fa-lightbulb-o"></i></div></div>');
-						//Set colors based on states
-						if(elements[type][i].state) $('#led_' + elements[type][i].id).addClass("light-on");
-					break;
-					case "thermometers":
-						$('.room_' + rooms[r]).append('<div class="element"><div class="element-label">' + elements[type][i].name + '</div><div class="element-info" id="temp_' + elements[type][i].id + '" data-id=' + elements[type][i].id + ' data-name="' + elements[type][i].name +'">' + elements[type][i].temp + ' &#176;C</div></div>');
-							if(elements[type][i].temp < 19) $('#temp_' + elements[type][i].id).addClass("temp-cold");
-							else if(elements[type][i].temp < 24) $('#temp_' + elements[type][i].id).addClass("temp-normal");
-							else $('#temp_' + elements[type][i].id).addClass("temp-hot");
-					break;
-					}
-
-				}
-
-			}
-		}
-
-		$('#controls').append('</div>');
+		$('#controls').append('<div class="room" data-name="' + rooms[r] + '"><div class="room-label">' + rooms[r] + '</div></div>');
 	}
 
+	//Draw ALL OFF button
 	$('#controls').append('<div class="room"><div class="room-label">&nbsp;</div><div class="element"><div class="element-label">Wszystkie OFF</div><div class="element-button all-off"><i class="fa fa-ban"></i></div></div></div>');
 }
 
-function getElements(rooms){
-	$.get('http://192.168.100.28:3000/all', function(elements){
-		console.log("GOT state of all");
-
-		showElements(rooms, elements);
-	});
+function drawLights(lights){
+	for(i in lights){
+		$('.room[data-name=' + lights[i].room + ']').append('<div class="element"><div class="element-label">' + lights[i].name + '</div><div class="element-button" id="led_' + lights[i].id + '" data-id=' + lights[i].id + '><i class=" fa fa-lightbulb-o"></i></div></div>');
+		
+		if(lights[i].state) $('#led_' + lights[i].id).addClass('light-on');
+	}
 }
 
-$(document).ready(function() {
+function drawThermometers(thermometers){
+	for(i in thermometers){
+		$('.room[data-name=' + thermometers[i].room + ']').append('<div class="element"><div class="element-label">' + thermometers[i].name + '</div><div class="element-info" id="temp_' + thermometers[i].id + '" data-id=' + thermometers[i].id + ' data-name="' + thermometers[i].name +'">' + thermometers[i].temp + ' &#176;C</div></div>');
+		
+		if(thermometers[i].temp < 19) $('#temp_' + thermometers[i].id).addClass("temp-cold");
+		else if(thermometers[i].temp < 24) $('#temp_' + thermometers[i].id).addClass("temp-normal");
+		else $('#temp_' + thermometers[i].id).addClass("temp-hot");
+	}
+}
 
-	//Get rooms
-	var rooms = "";
-	
+$(document).ready(function(){
 	$.ajax({
 		url: 'http://192.168.100.28:3000/rooms',
-		success: function(data){
-			rooms = data;
-		},
-		async: false
+		success: function(rooms){
+			drawRooms(rooms);
+		}
 	}).fail(function(){
 		showError("APIconnection");
 	});
 
-	var elements = "";
 	$.ajax({
 		url: 'http://192.168.100.28:3000/all',
 		success: function(elements){
-			showElements(rooms, elements);
-		},
-		async: false
+			var lights = elements["lights"];
+			drawLights(lights);
+
+			var thermometers = elements["thermometers"];
+			drawThermometers(thermometers);
+		}
 	}).fail(function(){
 		showError("APIconnection");
 	});
@@ -85,11 +61,10 @@ $(document).ready(function() {
 		});
 	}, 2000);
 
-
-
 	//Switching lights
-	$("#controls").on("click", ".element-button:not(.all-off)", function() {
+	$("#controls").on("click", ".element-button:not(.all-off)", function(){
 		console.log("---------------------");
+
 		var id = $(this).data("id");
 		var name = $(this).data("name");
 		$.ajax({
@@ -101,11 +76,12 @@ $(document).ready(function() {
 				else $("#led_" + id).removeClass("light-on");
 			}
 		});
+
 		console.log("SENT switch PIN " + id + " (" + name + ")");
 	});
 
 	//Switch all lights off
-	$("#controls").on("click", ".all-off", function() {
+	$("#controls").on("click", ".all-off", function(){
 		$.ajax({
 			url: 'http://192.168.100.28:3000/lights/switch/off',
 			success: function(res){
@@ -114,6 +90,4 @@ $(document).ready(function() {
 			}
 		});
 	});
-
-
 });

@@ -161,8 +161,8 @@ body{
 @media (min-device-width: 640px){
 	#navbar{
 		width: 80px;
+		position: fixed;
 		height: 100%;
-		position: absolute;
 	}
 	#navbar ul li a{
 		width: 80px;
