@@ -3,35 +3,34 @@
 	<head>
 		<title>MagicHome</title>
 		<link rel="stylesheet" type="text/css" href="style.css">
-		<script src="https://use.fontawesome.com/6872ced814.js"></script>
+		<link rel="stylesheet" href="font-awesome.min.css">
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 		<script src="error.js"></script>
 		<meta charset="UTF-8">
-		<meta name="theme-color" content="#2c3e50" />
+		<meta name="theme-color" content="#212121" />
 	</head>
 	<body>
 		<div id="navbar">
 			<ul>
-				<li><a href="index.html" class="fa fa-navicon" onclick="window.location.reload()"></a></li>
-				<li><a href="#lights" class="fa fa-lightbulb-o" onclick="window.location.reload()"></a></li>
-				<li><a href="#temp" class="fa fa-thermometer-half" onclick="window.location.reload()"></a></li>
+				<li><a href="./" class="fa fa-navicon" onclick="window.location.reload()"></a></li>
+				<li><a href="?settings" class="fa fa-cog" onclick="window.location.reload()"></a></li>
 			</ul>
 		</div>
-		<div id="controls">
-			
-		</div>
-
+		<div id="controls"></div>
+		
 		<script>
-			if(window.location.hash) {
-				var site = window.location.hash.substring(1); //Puts hash in variable, and removes the # character
-				if(site == "lights"){
-					$("body").append('<script type="text/javascript" src="lights.js"></' + 'script>');
-				}else if(site == "temp"){
-					$("body").append('<script type="text/javascript" src="temp.js"></' + 'script>');
-				}
-			}else{
-				$("body").append('<script type="text/javascript" src="all.js"></' + 'script>');
+			var cookie = document.cookie;
+			var ip = cookie.split("=")[1];
+			if(cookie == ""){
+				ip = prompt("Adres API: ", "192.168.100.28");
+				document.cookie = "API=" + ip + ";expires=Fri, 31-Dec-9999 23:59:59 GMT";
 			}
+			var address = "http://" + ip + ":3000";
+
+			var site = window.location.search.substring(1);
+			if(site){
+				$("body").append('<script type="text/javascript" src="' + site + '.js"></' + 'script>');
+			}else $("body").append('<script type="text/javascript" src="all.js"></' + 'script>');
 		</script>
 	</body>
 </html>	

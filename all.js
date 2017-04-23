@@ -1,48 +1,39 @@
-function drawRooms(rooms){
-	for(r in rooms){
-		$('#controls').append('<div class="room" data-name="' + rooms[r] + '"><div class="room-label">' + rooms[r] + '</div></div>');
-	}
+function drawGroups(groups) {
+	for(g in groups){
+		//Create empty groups
+		$('#controls').append('<div class="group" data-room="' + groups[g].room + '" data-room_id="' + g + '"><div class="group-head">' + groups[g].room + '<div class="group-head-off"><i class="fa fa-power-off"></i></div></div><div class="group-items"></div></div>');
 
-	//Draw ALL OFF button
-	$('#controls').append('<div class="room"><div class="room-label">&nbsp;</div><div class="element"><div class="element-label">Wszystkie OFF</div><div class="element-button all-off"><i class="fa fa-ban"></i></div></div></div>');
+		for(i in groups[g].items){
+			var item = groups[g].items[i];
+			var content;
+			var modifier = "";
+
+			if(item.type=="light"){
+				if(item.state == true) modifier = "light-on";
+				content = '<i class=" fa fa-lightbulb-o"></i>';
+			}
+			else if(item.type=="temp"){
+				if(item.temp < 19) modifier = "temp-cold";
+				else if(item.temp < 24) modifier = "temp-normal";
+				else modifier = "temp-hot";
+				content = item.temp + '&#176;C';
+			}
+
+			$('.group[data-room_id="' + g + '"] .group-items').append('<div class="group-item ' + item.type + ' ' + modifier + '" data-id=' + item.id + ' title="' + item.description + '">' + content + '</div>');
+		}
+	}
 }
 
-function drawLights(lights){
-	for(i in lights){
-		$('.room[data-name=' + lights[i].room + ']').append('<div class="element"><div class="element-label">' + lights[i].name + '</div><div class="element-button" id="led_' + lights[i].id + '" data-id=' + lights[i].id + '><i class=" fa fa-lightbulb-o"></i></div></div>');
-		
-		if(lights[i].state) $('#led_' + lights[i].id).addClass('light-on');
-	}
-}
-
-function drawThermometers(thermometers){
-	for(i in thermometers){
-		$('.room[data-name=' + thermometers[i].room + ']').append('<div class="element"><div class="element-label">' + thermometers[i].name + '</div><div class="element-info" id="temp_' + thermometers[i].id + '" data-id=' + thermometers[i].id + ' data-name="' + thermometers[i].name +'">' + thermometers[i].temp + ' &#176;C</div></div>');
-		
-		if(thermometers[i].temp < 19) $('#temp_' + thermometers[i].id).addClass("temp-cold");
-		else if(thermometers[i].temp < 24) $('#temp_' + thermometers[i].id).addClass("temp-normal");
-		else $('#temp_' + thermometers[i].id).addClass("temp-hot");
-	}
+function drawSwitchAllOff(){
+	$('#controls').append('<div id="all-off"><i class="fa fa-power-off"></i><span> Wylacz wszystkie</span></div>');
 }
 
 $(document).ready(function(){
 	$.ajax({
-		url: 'http://192.168.100.28:3000/rooms',
-		success: function(rooms){
-			drawRooms(rooms);
-		}
-	}).fail(function(){
-		showError("APIconnection");
-	});
-
-	$.ajax({
-		url: 'http://192.168.100.28:3000/all',
-		success: function(elements){
-			var lights = elements["lights"];
-			drawLights(lights);
-
-			var thermometers = elements["thermometers"];
-			drawThermometers(thermometers);
+		url: address + '/byRoom',
+		success: function(groups){
+			drawGroups(groups);
+			drawSwitchAllOff();
 		}
 	}).fail(function(){
 		showError("APIconnection");
@@ -51,43 +42,58 @@ $(document).ready(function(){
 	//Refresh state of lights
 	setInterval(function(){
 		$.ajax({
-			url: 'http://192.168.100.28:3000/lights',
-			success: function(lights){
-				for(i in lights){
-					if(lights[i].state) $('#led_' + lights[i].id).addClass("light-on");
-					else $('#led_' + lights[i].id).removeClass("light-on");
+			url: address + '/byRoom',
+			success: function(groups){
+				for(g in groups){
+					for(i in groups[g].items){
+						item = groups[g].items[i];
+						if(item.type=="light"){
+							if(item.state) $('.group-item[data-id=' + item.id + ']').addClass('light-on');
+							else $('.group-item[data-id=' + item.id + ']').removeClass('light-on');
+						}
+						else{
+							$('.group-item[data-id=' + item.id +']').html(item.temp + '&#176;C');
+						}
+					}
 				}
 			}
 		});
 	}, 2000);
 
 	//Switching lights
-	$("#controls").on("click", ".element-button:not(.all-off)", function(){
-		console.log("---------------------");
-
+	$("#controls").on("click", ".light", function(){
 		var id = $(this).data("id");
-		var name = $(this).data("name");
+		var t = $(this);
 		$.ajax({
-			url: 'http://192.168.100.28:3000/lights/switch/id/' + id,
+			url: address + '/lights/switch/id/' + id,
 			success: function(res){
-				console.log("PIN " + id + ": " + (res.state?"ON":"OFF"));
-
-				if(res.state) $("#led_" + id).addClass("light-on");
-				else $("#led_" + id).removeClass("light-on");
+				if(res.state) t.addClass("light-on");
+				else t.removeClass("light-on");
 			}
 		});
 
-		console.log("SENT switch PIN " + id + " (" + name + ")");
 	});
 
-	//Switch all lights off
-	$("#controls").on("click", ".all-off", function(){
+	//Switching room off
+	$("#controls").on("click", ".group-head-off", function(){
+		var room = $(this).parents('.group').data('room_id');
+		var t = $(this);
 		$.ajax({
-			url: 'http://192.168.100.28:3000/lights/switch/off',
+			url: address + '/lights/switch/room/' + room,
 			success: function(res){
-				console.log("All lights OFF");
-				if(res.success)$(".element-button:not(.all-off)").removeClass("light-on");
+				t.parent().siblings().find('.light').removeClass('light-on');
+			}
+		});
+	});
+
+	//Switching all lights off
+	$("#controls").on("click", "#all-off", function(){
+		$.ajax({
+			url: address + '/lights/switch/off/',
+			success: function(res){
+				
 			}
 		});
 	});
 });
+
