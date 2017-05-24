@@ -1,7 +1,8 @@
 function showError(type){
 	switch(type){
 		case "APIconnection":
-			$('#controls').html('<div class="error err-connection" onClick="window.location.reload()">Błąd połączenia z serwerem API (' + address + ')</div>');
+			console.error("Błąd połączenia z serwerem API: " + address);
+			$('#controls').html('<div class="error err-connection" onClick="window.location.reload()">Blad polaczenia z serwerem API (' + address + ')</div>');
 			break;
 	}
 }

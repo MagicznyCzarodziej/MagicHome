@@ -2,232 +2,286 @@ var express = require('express');
 var app = express();
 var gpio = require('rpi-gpio');
 var path = require('path');
+var mongo = require('mongodb').MongoClient;
+var assert = require('assert');
 
 app.use(function(req, res, next) {
-    res.header('Access-Control-Allow-Origin', '*');
-    next();
+  res.header('Access-Control-Allow-Origin', '*');
+  next();
 });
 
-var groups = [
-  {
-    "room": "Salon",
-    "items": [
-      {
-        "id": 0,
-        "type": "light",
-        "description": "Żyrandol",
-        "state": false,
-        "pin": 7
-      },
-      {
-        "id": 1,
-        "type": "light",
-        "description": "Kinkiet",
-        "state": false,
-        "pin": 11
-      },
-      {
-        "id": 2,
-        "type": "temp",
-        "description": "Powietrze",
-        "temp": 23
-      },
-      {
-        "id": 3,
-        "type": "temp",
-        "description": "Mini lodówka",
-        "temp": 7
-      }
-    ]
-  },
-  {
-    "room": "Kuchnia",
-    "items": [
-      {
-        "id": 4,
-        "type": "light",
-        "description": "Lampka",
-        "state": false,
-        "pin": 13
-      },
-      {
-        "id": 5,
-        "type": "temp",
-        "description": "Powietrze",
-        "temp": 27
-      }
-    ]
-  },
-  {
-    "room": "Pokój",
-    "items": [
-      {
-        "id": 6,
-        "type": "light",
-        "description": "Lampka",
-        "state": false,
-        "pin": 7
-      }
-    ]
-  },
-    {
-    "room": "Sypialnia",
-    "items": [
-      {
-        "id": 7,
-        "type": "light",
-        "description": "Światło",
-        "state": false,
-        "pin": 7
-      },
-      {
-        "id": 8,
-        "type": "light",
-        "description": "Światło",
-        "state": false,
-        "pin": 7
-      }
-    ]
-  },
-    {
-    "room": "Lazienka",
-    "items": [
-      {
-        "id": 9,
-        "type": "light",
-        "description": "Światło",
-        "state": false,
-        "pin": 7
-      },
-      {
-        "id": 10,
-        "type": "temp",
-        "description": "Powierze",
-        "temp": 22
-      }
-    ]
-  },
-    {
-    "room": "Przedpokój",
-    "items": [
-      {
-        "id": 11,
-        "type": "light",
-        "description": "Lewe",
-        "state": false,
-        "pin": 7
-      },
-      {
-        "id": 12,
-        "type": "light",
-        "description": "Prawe",
-        "state": false,
-        "pin": 7
-      }
-    ]
+//Better console logging
+var counter = 1;
+var lastLog = "";
+function logUpdate(text) {
+  if(text == lastLog){
+    counter++;
+    process.stdout.clearLine();
+    process.stdout.cursorTo(0);
+    process.stdout.write(text + " | x" + counter);
+  }else{
+    counter = 1;
+    process.stdout.write("\n" + text);
   }
-];
-
-gpio.setup(7, gpio.DIR_OUT);
-gpio.setup(11, gpio.DIR_OUT);
-gpio.setup(13, gpio.DIR_OUT, setOff);
-
-function setOff(){
-  for(g in groups){
-    for(i in groups[g].items){
-      let item = groups[g].items[i];
-      if(item.type == "light")switchPin(item.pin, false);
-      else continue;
-      console.log('SETUP | L | SET pin ' + item.pin + ' OFF');
-    }
-  }
+  lastLog = text;
 }
 
-//Switch light
-function switchPin(pin, newState){
-  gpio.write(pin, newState, function(err){
-    if(err) throw err;
-    console.log('L | Switched pin ' + pin + ' to '+ (newState?"ON":"OFF"));
+var url = 'mongodb://192.168.100.254:27017/mHome';
+var db;
+
+var lights, temps, rooms;
+function setupDB() {
+  mon = {rooms, lights, temps};
+
+  //Rooms -----------
+  mon.rooms = {
+    collection: db.collection('rooms'),
+    getList: function (callback) {
+      this.collection.find({},{"_id": 0}).toArray(function(err, data) {
+        logUpdate("MongoDB | Get rooms list");
+        callback(data);
+      });
+    },
+    getName: function (id, callback) {
+      this.collection.findOne({"id": parseInt(id)}, {"_id": 0}, function(err, data) {
+        var name = data.name;
+        logUpdate("MongoDB | Get room data (ID: " + id + ")");
+        callback(name);
+      });
+    }
+  };
+
+  //Light  -----------
+  mon.lights = {
+    collection: db.collection('lights'),
+    getState: function (id, callback) {
+      this.collection.findOne({"id": parseInt(id)}, {"_id": 0, "state": 1}, function(err, data) {
+        var state = data.state;
+        logUpdate("MongoDB | Get light state (ID: " + id + " - " + (state?"ON":"OFF") + ")");
+        callback(state);
+      });
+    },
+    getList: function (callback) {
+      this.collection.find({},{"_id": 0}).toArray(function(err, data) {
+        logUpdate("MongoDB | Get lights list");
+        callback(data);
+      });
+    },
+    getData: function (id, callback) {
+      this.collection.findOne({"id": parseInt(id)}, {"_id": 0}, function(err, data) {
+        logUpdate("MongoDB | Get light data (ID: " + id + ")");
+        callback(data);
+      });
+    },
+    updateState: function (id, state) {
+      this.collection.update({"id": parseInt(id)}, {$set: {"state": state}}, function(err, result) {
+        logUpdate("MongoDB | Updated light (ID " + id + ")");
+      });
+    },
+    updateRoom: function (roomID, state) {
+      this.collection.update({"room_id": parseInt(roomID)}, {$set: {"state": state}}, {"multi": true}, function(err, result) {
+        logUpdate("MongoDB | Updated lights in room (ID " + roomID + ")");
+      });
+    },
+    updateAll: function (state) {
+      this.collection.update({}, {$set: {"state": state}}, {"multi": true}, function(err, result) {
+        logUpdate("MongoDB | Updated all lights");
+      });
+    }
+  };
+
+  //Temps  -----------
+  mon.temps = {
+    collection: db.collection('thermometers'),
+    getList: function (callback) {
+      this.collection.find({},{"id": 1, "description": 1, "room_id": 1}).toArray(function(err, data) {
+        logUpdate("MongoDB | Get temps list");
+        callback(data);
+      });
+    },
+    getData: function (id, callback) {
+      this.collection.findOne({"id": parseInt(id)}, function(err, data) {
+        logUpdate("MongoDB | Get temp data (ID: " + id + ")");
+        callback(data);
+      });
+    },
+    getTemp: function (id, callback) {
+      this.collection.findOne({"id": parseInt(id)}, {"temps": {$slice: -1}, "_id": 0, "id": 0, "description": 0}, function(err, data) {
+        var dateAndTemp = data.temps[0]; //Because findOne returns table with table inside
+        logUpdate("MongoDB | Get temperature (ID: " + id + " - " + dateAndTemp[1] + ")");
+        callback(dateAndTemp);
+      });
+    },
+    pushTemp: function (id, tempArray) {
+      this.collection.update({"id": parseInt(id)}, {$push: {"temps": tempArray}}, function(err, result) {
+        logUpdate("MongoDB | Pushed temp (ID " + id + ")");
+      });
+    }
+  };
+}
+
+mongo.connect(url, function(err, database) {
+  // assert.equal(null, err);
+  db = database;
+  setupDB();
+  logUpdate("MongoDB | Connected successfully to server");
+
+  tempUpdate();
+  setInterval(tempUpdate, UPDATE_TIME);
+
+  gpio.setup(7, gpio.DIR_OUT);
+  gpio.setup(11, gpio.DIR_OUT);
+  gpio.setup(13, gpio.DIR_OUT, setOff);
+
+  //Start app when DB is ready
+  var server = app.listen(3000, function (){
+    var host = server.address().address;
+    var port = server.address().port;
+    logUpdate('Express | Listening at http://' + host +":" + port);
+  });
+});
+
+//Temporary generate temperature
+var diff = [-0.2,-0.1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.1,0.2];
+var UPDATE_TIME = 60000;
+
+function tempUpdate(){
+  logUpdate("------ TEMP UPDATE ------")
+  var now = new Date().getTime();
+  logUpdate("Time: " + now);
+  mon.temps.getList(function (thermometers) {
+    for(i in thermometers){
+      let id = parseInt(thermometers[i].id);
+      mon.temps.getTemp(id, function (data) {
+        var temp = data[1];
+        do{
+          temp *= 10;
+          temp += diff[Math.floor(Math.random() * 20)]*10;
+          temp /= 10;
+        }while(temp > 24 || temp < 21);
+        mon.temps.pushTemp( id, [now, temp]);
+        // logUpdate("T" + id + " - " + temp);
+      });
+    }
   });
 }
 
-//Send all data
-app.get('/byRoom', function(req, res){
-  console.log("SENT all by ROOM");
-  res.json(groups);
+function setOff(){
+  logUpdate("PINS | SETUP");
+  mon.lights.getList(function (lights) {
+    for(i in lights){
+      let pin = lights[i].pin;
+      switchPin(pin, false);
+    }
+  });
+}
 
+//Switch light (RPI IO-pin)
+function switchPin(pin, newState){
+  gpio.write(pin, newState, function(err){
+    if(err) throw err;
+    logUpdate('L | Switched pin ' + pin + ' to '+ (newState?"ON":"OFF"));
+  });
+}
+
+//Send rooms list
+app.get('/rooms', function(req, res){
+  logUpdate("R | SENT rooms");
+  mon.rooms.getList(function (rooms) {
+    res.json(rooms);
+  });
 });
 
+//Send thermometers list
+app.get('/temps/', function (req, res){
+    mon.temps.getList(function (temps) {
+      res.json(temps);
+    });
+});
+
+//Send temperature by ID
+app.get('/temps/:id', function (req, res){
+  mon.temps.getTemp(req.params.id, function(data) {
+    logUpdate('T | SENT temp of thermometre with id ' + req.params.id);
+    res.json(data);
+  });
+  // res.status(404).send("Thermometer with ID " + req.params.id + " not found!");
+});
+
+//Send all data by thermometer ID
+app.get('/temps/data/:id', function (req, res) {
+   mon.temps.getData(req.params.id, function(data) {
+    logUpdate('T | SENT info of thermometre with id ' + req.params.id);
+    res.json(data);
+  });
+  // res.status(404).send("Thermometer with ID " + req.params.id + " not found!");
+});
+
+//Send lights list
+app.get('/lights/', function (req, res){
+    mon.lights.getList(function (lights) {
+      res.json(lights);
+    });
+});
 
 //Send state of light by ID
 app.get('/lights/:id', function (req, res){
-  for(g in groups){
-    for(i in groups[g].items){
-      let item = groups[g].items[i];
-      if(item.id == req.params.id){
-        console.log('L | SENT state of pin ' + item.pin + ' which is ' + (item.state?"ON":"OFF"));
-        res.json(item.state);
-        return 0;
-      }
-    }
-  }  
+  mon.lights.getState(req.params.id, function (state) {
+    logUpdate('L | SENT state of light ' + req.params.id + ' which is ' + (state?"ON":"OFF"));
+    res.json(state);
+  });
 });
 
 //Switch light by ID
 app.get('/lights/switch/id/:id', function (req, res){
-  for(g in groups){
-    for(i in groups[g].items){
-      let item = groups[g].items[i];
-      if(item.id == req.params.id){
-        console.log('L | GOT switch request on pin ' + item.pin + ' to ' + (newState?"ON":"OFF"));
-        var oldState = item.state; 
-        var newState = !oldState;
-
-        switchPin(item.pin, newState);
-        item.state = newState;
-
-        res.json({state: newState});
-        return 0;
-      }
-    }
-  }  
+  mon.lights.getData(req.params.id, function (data) {
+    var id = req.params.id;
+    var pin = data.pin;
+    var newState = !data.state;
+    switchPin(pin, newState);
+    mon.lights.updateState(id, newState);
+    logUpdate("L | GOT switch request on light (ID: " + id + ", PIN: " + pin + ') to ' + (newState?"ON":"OFF"));
+    res.json({state: newState});
+  });
+  // res.status(404).send("Light with ID " + req.params.id + " not found!");
 });
 
 //Switch lights off by room
 app.get('/lights/switch/room/:id', function (req, res){
-  let items = groups[req.params.id].items;
-  for(i in items){
-    if(items[i].type != "light") continue;
-    switchPin(items[i].pin, false);
-    items[i].state = false;
-  }
-
-  console.log("L | Switched lights in " + groups[req.params.id].room + " OFF");
-  res.json({success: true});
+  mon.lights.getList(function (data) {
+    for(i in data){
+      let roomID = data[i].room_id;
+      if(roomID == req.params.id){
+        let pin = data[i].pin;
+        switchPin(pin, false);
+      }
+    }
+    mon.lights.updateRoom(req.params.id, false);
+    res.json({success: true});
+  });
+  //logUpdate("L | Switched OFF the lights in " + groups[req.params.id].room);
 });
 
 //Switch all lights off
 app.get('/lights/switch/off', function(req, res){
-  for(g in groups){
-    for(i in groups[g].items){
-      let item = groups[g].items[i];
-      if(item.type == "light"){
-        switchPin(item.pin, false);
-        item.state = false;
-      }
+  mon.lights.getList(function (lights) {
+    for(i in lights){
+      let pin = lights[i].pin;
+      switchPin(pin, false);
     }
-  }
+    mon.lights.updateAll(false);
+    res.json({success: true});
+  });
+  logUpdate("A | Switched OFF all lights");
+});
+
+//Close DB Connection (dev-test)
+app.get('/db/close', function (req, res) {
+  db.close();
+  logUpdate("MongoDB | Connection closed");
   res.json({success: true});
 });
 
-//Server ------
-var server = app.listen(3000, function (){
-  var host = server.address().address;
-  var port = server.address().port;
-  console.log('Listening at http://%s:%s', host, port);
-});
-
-
 /* TODO:
-
+ - Errors handling
 */

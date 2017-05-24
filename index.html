@@ -4,28 +4,37 @@
 		<title>MagicHome</title>
 		<link rel="stylesheet" type="text/css" href="style.css">
 		<link rel="stylesheet" href="font-awesome.min.css">
+		<link rel="icon" type="image/png" href="img/favicon.png">
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+		<script src="cookie.js"></script>
 		<script src="error.js"></script>
 		<meta charset="UTF-8">
 		<meta name="theme-color" content="#212121" />
 	</head>
 	<body>
-		<div id="navbar">
-			<ul>
-				<li><a href="./" class="fa fa-navicon" onclick="window.location.reload()"></a></li>
-				<li><a href="?settings" class="fa fa-cog" onclick="window.location.reload()"></a></li>
-			</ul>
+		<div id="header"><span><a href="./">MagicHome</a></span>
+				<ul id="navbar">
+					<li><a href="?settings" class="fa fa-cog" onclick="window.location.reload()"></a></li>
+				</ul>
 		</div>
-		<div id="controls"></div>
-		
+		<div id="controls">
+
+		</div>
+
 		<script>
-			var cookie = document.cookie;
-			var ip = cookie.split("=")[1];
-			if(cookie == ""){
+			var ip = Cookies.get('API');
+			var refreshTime = Cookies.get('REFRESH_TIME');
+
+			if(ip == undefined){
 				ip = prompt("Adres API: ", "192.168.100.28");
-				document.cookie = "API=" + ip + ";expires=Fri, 31-Dec-9999 23:59:59 GMT";
+				Cookies.set('API', ip, {expires: new Date(9999, 12, 31)});
 			}
 			var address = "http://" + ip + ":3000";
+
+			if(refreshTime == undefined){
+				refreshTime = 1000;
+				Cookies.set('REFRESH_TIME', refreshTime, {expires: new Date(9999, 12, 31)});
+			}
 
 			var site = window.location.search.substring(1);
 			if(site){
@@ -33,4 +42,4 @@
 			}else $("body").append('<script type="text/javascript" src="all.js"></' + 'script>');
 		</script>
 	</body>
-</html>	
+</html>
