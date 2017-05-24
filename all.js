@@ -57,88 +57,47 @@ function drawTemps(temps) {
 	}
 }
 
-/*
-function drawGroups(groups){
-	for(g in groups){
-		//Create empty groups
-		$('#controls').append('<div class="group" data-room="' + groups[g].room + '" data-room_id="' + g + '"><div class="group-head">' + groups[g].room + '<div class="group-head-off"><i class="fa fa-power-off"></i></div></div><div class="group-items"></div></div>');
-
-		for(i in groups[g].items){
-			var item = groups[g].items[i];
-
-			var thisRoom = $('.group[data-room_id="' + g + '"] .group-items');
-			var thisItem = $('<div class="group-item">');
-			thisItem.attr({"title": item.description, "data-id": item.id});
-
-			switch(item.type){
-				case "light":
-					var button = '<i class=" fa fa-lightbulb-o"></i>';
-					thisItem
-						.addClass("light")
-						.attr("data-state", item.state?"on":"off")
-						.html(button);
-					break;
-				case "temp":
-					var temp;
-					if(item.temp < 19) temp = "cold";
-					else if(item.temp < 24) temp = "normal";
-					else temp = "hot";
-					thisItem
-						.addClass("temp")
-						.attr("data-temp", temp)
-						.html("<a href='./temp.html?" + item.id + "'>" + item.temp + "&#176;C</a>");
-					break;
-				default:
-					console.error("Nieprawidłowy typ obiektu (item.type): " + item.type);
-					break;
-			}
-			thisRoom.append(thisItem);
-		}
-	}
-}
-*/
 function drawSwitchAllOff(){
 	$('#controls').append('<div id="all-off"><i class="fa fa-power-off"></i><br><span style="font-family: Orbitron;"> Wylacz wszystkie swiatla</span></div>');
 }
 
-function drawRefreshed(groups){
-	for(g in groups){
-		for(i in groups[g].items){
-			item = groups[g].items[i];
-			var thisItem = $('.group-item[data-id=' + item.id + ']');
+function refreshLights(lights) {
+	for(i in lights){
+		let thisLight = lights[i];
+		let roomID = thisLight.room_id,
+				id = thisLight.id,
+				state = thisLight.state;
 
-			switch(item.type){
-				case "light":
-					thisItem.attr("data-state", item.state?"on":"off");
-					break;
-				case "temp":
-					let temp;
-					if(item.temp < 19) temp = "cold";
-					else if(item.temp < 24) temp = "normal";
-					else temp = "hot";
-					thisItem
-						.html("<a href='./temp.html?" + item.id + "'>" + item.temp + "&#176;C</a>")
-						.attr("data-temp", temp);
-					break;
-				default:
-					console.error("Nieprawidłowy typ obiektu (item.type): " + item.type);
-					break;
-			}
-		}
+		let room = $('.group[data-room_id="' + roomID + '"] .group-items');
+		let item = $('.group-item[data-id="' + id + '"]');
+		item.attr({"data-state": (state?"on":"off")});
 	}
 }
 
-function getDataFromServer(){
-	// $.ajax({
-	// 	url: address + '/byRoom',
-	// 	success: function(groups){
-	// 		drawGroups(groups);
-	// 		drawSwitchAllOff();
-	// 	}
-	// }).fail(function(){
-	// 	showError("APIconnection");
-	// });
+function refreshTemps(temps) {
+	for(i in temps){
+		let thisTemp = temps[i];
+		let roomID = thisTemp.room_id,
+				id = thisTemp.id,
+				temp,
+				tempType;
 
+		getTemp(id, function (data) {
+			temp = data[1];
+
+			if(temp < 19) tempType = "cold";
+			else if(temp < 24) tempType = "normal";
+			else tempType = "hot";
+
+			let room = $('.group[data-room_id="' + roomID + '"] .group-items');
+			let item = $('.group-item[data-id="' + id + '"]');
+			item.attr({"data-temp": tempType})
+					.html("<a href='./temp.html?" + id + "'>" + temp + "&#176;C</a>");
+		});
+	}
+}
+
+function prepareRooms() {
 	//Get Rooms
 	$.ajax({
 		url: address + "/rooms",
@@ -149,34 +108,33 @@ function getDataFromServer(){
 	}).fail(function(){
 		showError("APIconnection");
 	});
+}
 
+function updateLights(firstTime) {
 	//Get lights
 	$.ajax({
 		url: address + "/lights",
 		async: false,
 		success: function (lights) {
-			drawLights(lights);
+			if(firstTime) drawLights(lights);
+			else refreshLights(lights);
 		}
 	}).fail(function(){
 		showError("APIconnection");
 	});
-
-	//Get temps
-		$.ajax({
-			url: address + "/temps",
-			async: false,
-			success: function (temps) {
-				drawTemps(temps);
-			}
-		}).fail(function(){
-			showError("APIconnection");
-		});
 }
 
-function refreshAll(){
+function updateTemps(firstTime) {
+	//Get temps
 	$.ajax({
-		url: address + '/byRoom',
-		success: drawRefreshed
+		url: address + "/temps",
+		async: false,
+		success: function (temps) {
+			if(firstTime) drawTemps(temps);
+			else refreshTemps(temps);
+		}
+	}).fail(function(){
+		showError("APIconnection");
 	});
 }
 
@@ -211,9 +169,13 @@ function switchAllOff(){
 
 //READY ---------------------
 $(function() {
-	getDataFromServer();
+	prepareRooms();
+	updateLights(true);
+	updateTemps(true);
 	drawSwitchAllOff();
-	//setInterval(refreshAll, refreshTime); // Set auto-refresh
+
+	setInterval(updateLights, refreshTime);
+	setInterval(updateTemps, 60*1000);
 
 	//Switching light
 	$("#controls").on("click", ".light", function(){
