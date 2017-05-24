@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="img/favicon.png">
     <meta charset="UTF-8">
     <meta name="theme-color" content="#212121" />
-    <link href="./flot/examples.css" rel="stylesheet" type="text/css">
+    <link href="temps.css" rel="stylesheet" type="text/css">
     <script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>
     <script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>
     <script language="javascript" type="text/javascript" src="./flot/jquery.flot.time.js"></script>
@@ -18,21 +18,27 @@
       var tempID = window.location.search.substring(1);
       var data = [];
       var name = "";
+      var DATE_RANGE = 24*60*60*1000;
 
-      function getMin() {
+      function getXMin() {
+        var now = new Date().getTime();
+        return now - DATE_RANGE;
+      }
+      function getYMin() {
         var min = 999;
         for(i in data){
           if(data[i][1] < min) min = data[i][1];
         }
         return min;
       }
-      function getMax() {
+      function getYMax() {
         var max = -999;
         for(i in data){
           if(data[i][1] > max) max = data[i][1];
         }
         return max;
       }
+
 
       var options = {
         series:{
@@ -78,7 +84,7 @@
           UPDATE_TIME = 60000;
 
       function getDataFromServer() {
-        while(data.length > TOTAL_POINTS-1) data.shift();
+        //while(data.length > TOTAL_POINTS-1) data.shift();
         $.ajax({
           url: "http://192.168.100.28:3000/temps/" + tempID,
           type: 'GET',
@@ -94,8 +100,9 @@
 
       function updateChart() {
         getDataFromServer();
-        minimum = getMin()-0.3;
-        options.yaxis.min = minimum;
+        Yminimum = getYMin()-0.3;
+        options.yaxis.min = Yminimum;
+        options.xaxis.min = getXMin();
         plot = $.plot($("#chart"), [data], options);
         setTimeout(updateChart, UPDATE_TIME);
       }
@@ -126,11 +133,18 @@
           success: function(res){
             name = res.description;
             data = res.temps;
+            lastTemp = data[data.length-1][1];
             $("#chart-name").html(name);
+            $("#temp").html(lastTemp + "&#176;C");
+
+            updateChart();
+            last();
+          },
+          error: function (error) {
+            $("#chart-name").html("Nieprawidlowe ID");
+            console.error(error.responseText);
           }
         });
-        updateChart();
-        last();
 
         //Zooming
         $("#chart").bind("plotselected", function (event, ranges) {
@@ -160,7 +174,7 @@
   <body>
     <div id="header"><span><a href="./">MagicHome</a></span></div>
 		<div class="chart-container">
-      <div id="chart-header"><span id="chart-name"></span><span id="last-update"></span></div>
+      <div id="chart-header"><span id="chart-name"></span> <span id="temp"></span><span id="last-update"></span></div>
       <div id="chart-box">
 			  <div id="chart"></div>
       </div>

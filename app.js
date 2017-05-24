@@ -56,8 +56,15 @@ function setupDB() {
     collection: db.collection('lights'),
     getState: function (id, callback) {
       this.collection.findOne({"id": parseInt(id)}, {"_id": 0, "state": 1}, function(err, data) {
-        var state = data.state;
-        logUpdate("MongoDB | Get light state (ID: " + id + " - " + (state?"ON":"OFF") + ")");
+        var state;
+        if(data){
+          state = data.state;
+          logUpdate("MongoDB | Get light state (ID: " + id + " - " + (state?"ON":"OFF") + ")");
+        }
+        else{
+          state = null;
+          logUpdate("MongoDB | Light not found (ID: " + id + ")");
+        }
         callback(state);
       });
     },
@@ -107,9 +114,11 @@ function setupDB() {
     },
     getTemp: function (id, callback) {
       this.collection.findOne({"id": parseInt(id)}, {"temps": {$slice: -1}, "_id": 0, "id": 0, "description": 0}, function(err, data) {
-        var dateAndTemp = data.temps[0]; //Because findOne returns table with table inside
-        logUpdate("MongoDB | Get temperature (ID: " + id + " - " + dateAndTemp[1] + ")");
-        callback(dateAndTemp);
+        if(data){
+          var dateAndTemp = data.temps[0]; //Because findOne returns table with table inside
+          logUpdate("MongoDB | Get temperature (ID: " + id + " - " + dateAndTemp[1] + ")");
+          callback(dateAndTemp);
+        }else callback(null);
       });
     },
     pushTemp: function (id, tempArray) {
@@ -180,13 +189,13 @@ function setOff(){
 function switchPin(pin, newState){
   gpio.write(pin, newState, function(err){
     if(err) throw err;
-    logUpdate('L | Switched pin ' + pin + ' to '+ (newState?"ON":"OFF"));
+    logUpdate('mHome L | Switched pin ' + pin + ' to '+ (newState?"ON":"OFF"));
   });
 }
 
 //Send rooms list
 app.get('/rooms', function(req, res){
-  logUpdate("R | SENT rooms");
+  logUpdate("mHome R | SENT rooms");
   mon.rooms.getList(function (rooms) {
     res.json(rooms);
   });
@@ -202,19 +211,19 @@ app.get('/temps/', function (req, res){
 //Send temperature by ID
 app.get('/temps/:id', function (req, res){
   mon.temps.getTemp(req.params.id, function(data) {
-    logUpdate('T | SENT temp of thermometre with id ' + req.params.id);
-    res.json(data);
+    logUpdate('mHome T | SENT temp of thermometre with id ' + req.params.id);
+    if(data) res.json(data);
+    else res.status(404).send("Thermometer with ID " + req.params.id + " not found!");
   });
-  // res.status(404).send("Thermometer with ID " + req.params.id + " not found!");
 });
 
 //Send all data by thermometer ID
 app.get('/temps/data/:id', function (req, res) {
    mon.temps.getData(req.params.id, function(data) {
-    logUpdate('T | SENT info of thermometre with id ' + req.params.id);
-    res.json(data);
+    logUpdate('mHome T | SENT info of thermometre with id ' + req.params.id);
+    if(data) res.json(data);
+    else res.status(404).send("Thermometer with ID " + req.params.id + " not found!");
   });
-  // res.status(404).send("Thermometer with ID " + req.params.id + " not found!");
 });
 
 //Send lights list
@@ -227,23 +236,29 @@ app.get('/lights/', function (req, res){
 //Send state of light by ID
 app.get('/lights/:id', function (req, res){
   mon.lights.getState(req.params.id, function (state) {
-    logUpdate('L | SENT state of light ' + req.params.id + ' which is ' + (state?"ON":"OFF"));
-    res.json(state);
+    if(state !== null){
+      logUpdate('mHome L | SENT state of light ' + req.params.id + ' which is ' + (state?"ON":"OFF"));
+      res.json(state);
+    }else{
+      res.status(404).send("Light with ID " + req.params.id + " not found!");
+      logUpdate("mHome L | Light not found (ID: " + req.params.id + ")");
+    }
   });
 });
 
 //Switch light by ID
 app.get('/lights/switch/id/:id', function (req, res){
   mon.lights.getData(req.params.id, function (data) {
-    var id = req.params.id;
-    var pin = data.pin;
-    var newState = !data.state;
-    switchPin(pin, newState);
-    mon.lights.updateState(id, newState);
-    logUpdate("L | GOT switch request on light (ID: " + id + ", PIN: " + pin + ') to ' + (newState?"ON":"OFF"));
-    res.json({state: newState});
+    if(data){
+      var id = req.params.id;
+      var pin = data.pin;
+      var newState = !data.state;
+      switchPin(pin, newState);
+      mon.lights.updateState(id, newState);
+      logUpdate("mHome L | GOT switch request on light (ID: " + id + ", PIN: " + pin + ') to ' + (newState?"ON":"OFF"));
+      res.json({state: newState});
+    } else res.status(404).send("Light with ID " + req.params.id + " not found!");
   });
-  // res.status(404).send("Light with ID " + req.params.id + " not found!");
 });
 
 //Switch lights off by room
@@ -272,7 +287,7 @@ app.get('/lights/switch/off', function(req, res){
     mon.lights.updateAll(false);
     res.json({success: true});
   });
-  logUpdate("A | Switched OFF all lights");
+  logUpdate("mHome A | Switched OFF all lights");
 });
 
 //Close DB Connection (dev-test)

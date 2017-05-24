@@ -37,10 +37,11 @@ body {
 	background-color: #32383e;
 	padding: 15px;
 	text-align: left;
-}
-#chart-name{
 	font-size: 30px;
 	color: #c7c7c7;
+}
+#temp{
+	padding-left: 20px;
 }
 #chart-box{
 	background-color: #3e444c;
@@ -52,7 +53,6 @@ body {
 	height: 100%;
 	font-size: 14px;
 	line-height: 1.2em;
-
 }
 #hovered-temp{
 	color: #ffffff;
