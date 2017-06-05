@@ -18,27 +18,33 @@
       var tempID = window.location.search.substring(1);
       var data = [];
       var name = "";
-      var DATE_RANGE = 24*60*60*1000;
+      var DATE_RANGE = 24 * 60 * 60 * 1000;
 
       function getXMin() {
-        var now = new Date().getTime();
+        let now = new Date().getTime();
         return now - DATE_RANGE;
       }
       function getYMin() {
         var min = 999;
-        for(i in data){
+        let minDate = getXMin();
+        for(i = data.length-1; i > 0; i--){
           if(data[i][1] < min) min = data[i][1];
+          let time = data[i][0];
+          if(time <= minDate) break;
         }
         return min;
       }
+
       function getYMax() {
+        let minDate = getXMin();
         var max = -999;
-        for(i in data){
+        for(i = data.length-1; i > 0; i--){
           if(data[i][1] > max) max = data[i][1];
+          let time = data[i][0];
+          if(time <= minDate) break;
         }
         return max;
       }
-
 
       var options = {
         series:{
@@ -80,11 +86,9 @@
         colors: ["#1977c3"]//2ecc71
       };
 
-      var TOTAL_POINTS = 1440,
-          UPDATE_TIME = 60000;
+      const UPDATE_TIME = 60000;
 
       function getDataFromServer() {
-        //while(data.length > TOTAL_POINTS-1) data.shift();
         $.ajax({
           url: "http://192.168.100.28:3000/temps/" + tempID,
           type: 'GET',

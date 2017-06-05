@@ -5,12 +5,11 @@ function drawRooms(rooms) {
 }
 
 function drawLights(lights) {
-	for(i in lights){
-		let thisLight = lights[i];
-		let roomID = thisLight.room_id,
-				id = thisLight.id,
-				description = thisLight.description,
-				state = thisLight.state;
+	for(i of lights){
+		let roomID = i.room_id,
+				id = i.id,
+				description = i.description,
+				state = i.state;
 
 		let room = $('.group[data-room_id="' + roomID + '"] .group-items');
 		let item = $('<div class="group-item">');
@@ -32,11 +31,10 @@ function getTemp(id, callback) {
 }
 
 function drawTemps(temps) {
-	for(i in temps){
-		let thisTemp = temps[i];
-		let roomID = thisTemp.room_id,
-				id = thisTemp.id,
-				description = thisTemp.description,
+	for(i of temps){
+		let roomID = i.room_id,
+				id = i.id,
+				description = i.description,
 				temp,
 				tempType;
 
@@ -62,11 +60,10 @@ function drawSwitchAllOff(){
 }
 
 function refreshLights(lights) {
-	for(i in lights){
-		let thisLight = lights[i];
-		let roomID = thisLight.room_id,
-				id = thisLight.id,
-				state = thisLight.state;
+	for(i of lights){
+		let roomID = i.room_id,
+				id = i.id,
+				state = i.state;
 
 		let room = $('.group[data-room_id="' + roomID + '"] .group-items');
 		let item = $('.group-item[data-id="' + id + '"]');
@@ -75,10 +72,9 @@ function refreshLights(lights) {
 }
 
 function refreshTemps(temps) {
-	for(i in temps){
-		let thisTemp = temps[i];
-		let roomID = thisTemp.room_id,
-				id = thisTemp.id,
+	for(i of temps){
+		let roomID = i.room_id,
+				id = i.id,
 				temp,
 				tempType;
 
@@ -139,7 +135,7 @@ function updateTemps(firstTime) {
 }
 
 function switchLight(thisItem){
-	var id = thisItem.data("id");
+	let id = thisItem.data("id");
 	$.ajax({
 		url: address + '/lights/switch/id/' + id,
 		success: function(res){
@@ -149,7 +145,7 @@ function switchLight(thisItem){
 }
 
 function switchRoomOff(thisRoom){
-	var room = thisRoom.parents('.group').data('room_id');
+	let room = thisRoom.parents('.group').data('room_id');
 	$.ajax({
 		url: address + '/lights/switch/room/' + room,
 		success: function(res){
@@ -167,8 +163,7 @@ function switchAllOff(){
 	});
 }
 
-//READY ---------------------
-$(function() {
+function setup() {
 	prepareRooms();
 	updateLights(true);
 	updateTemps(true);
@@ -176,6 +171,11 @@ $(function() {
 
 	setInterval(updateLights, refreshTime);
 	setInterval(updateTemps, 60*1000);
+}
+
+//READY ---------------------
+$(function() {
+	setup();
 
 	//Switching light
 	$("#controls").on("click", ".light", function(){
