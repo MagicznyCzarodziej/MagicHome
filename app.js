@@ -4,7 +4,6 @@ var gpio = require('rpi-gpio');
 var path = require('path');
 var mongo = require('mongodb').MongoClient;
 var assert = require('assert');
-var therms = require('ds18b20');
 
 app.use(function(req, res, next) {
   res.header('Access-Control-Allow-Origin', '*');
@@ -45,8 +44,8 @@ function setupDB() {
     },
     getName: function (id, callback) {
       this.collection.findOne({"id": parseInt(id)}, {"_id": 0}, function(err, data) {
-        let name = data.name;
-        logUpdate(`MongoDB | Get room data (ID: ${id})`);
+        var name = data.name;
+        logUpdate("MongoDB | Get room data (ID: " + id + ")");
         callback(name);
       });
     }
@@ -57,15 +56,8 @@ function setupDB() {
     collection: db.collection('lights'),
     getState: function (id, callback) {
       this.collection.findOne({"id": parseInt(id)}, {"_id": 0, "state": 1}, function(err, data) {
-        let state;
-        if(data){
-          state = data.state;
-          logUpdate(`MongoDB | Get light state (ID: ${id} - ${state?"ON":"OFF"})`);
-        }
-        else{
-          state = null;
-          logUpdate(`MongoDB | Light not found (ID: ${id})`);
-        }
+        var state = data.state;
+        logUpdate("MongoDB | Get light state (ID: " + id + " - " + (state?"ON":"OFF") + ")");
         callback(state);
       });
     },
@@ -77,18 +69,18 @@ function setupDB() {
     },
     getData: function (id, callback) {
       this.collection.findOne({"id": parseInt(id)}, {"_id": 0}, function(err, data) {
-        logUpdate(`MongoDB | Get light data (ID: ${id})`);
+        logUpdate("MongoDB | Get light data (ID: " + id + ")");
         callback(data);
       });
     },
     updateState: function (id, state) {
       this.collection.update({"id": parseInt(id)}, {$set: {"state": state}}, function(err, result) {
-        logUpdate(`MongoDB | Updated light (ID ${id})`);
+        logUpdate("MongoDB | Updated light (ID " + id + ")");
       });
     },
     updateRoom: function (roomID, state) {
       this.collection.update({"room_id": parseInt(roomID)}, {$set: {"state": state}}, {"multi": true}, function(err, result) {
-        logUpdate(`MongoDB | Updated lights in room (ID ${roomID})`);
+        logUpdate("MongoDB | Updated lights in room (ID " + roomID + ")");
       });
     },
     updateAll: function (state) {
@@ -102,41 +94,34 @@ function setupDB() {
   mon.temps = {
     collection: db.collection('thermometers'),
     getList: function (callback) {
-      this.collection.find({},{"id": 1, "description": 1, "room_id": 1, "device_id": 1}).toArray(function(err, data) {
+      this.collection.find({},{"id": 1, "description": 1, "room_id": 1}).toArray(function(err, data) {
         logUpdate("MongoDB | Get temps list");
         callback(data);
       });
     },
     getData: function (id, callback) {
-      this.collection.findOne({"id": parseInt(id)}, {"device_id": 0}, function(err, data) {
-        logUpdate(`MongoDB | Get temp data (ID: ${id})`);
+      this.collection.findOne({"id": parseInt(id)}, function(err, data) {
+        logUpdate("MongoDB | Get temp data (ID: " + id + ")");
         callback(data);
       });
     },
     getTemp: function (id, callback) {
       this.collection.findOne({"id": parseInt(id)}, {"temps": {$slice: -1}, "_id": 0, "id": 0, "description": 0}, function(err, data) {
-        if(data){
-          let dateAndTemp = data.temps[0]; //Because findOne returns table with table inside
-          logUpdate(`MongoDB | Get temperature (ID: ${id} - ${dateAndTemp[1]})`);
-          callback(dateAndTemp);
-        }else callback(null);
-      });
-    },
-    getDevice: function (id, callback) {
-      this.collection.find({"id": parseInt(id)},{"device_id": 1}).toArray(function(err, data) {
-        logUpdate(`MongoDB | Get temps device_id (ID ${id})`);
-        callback(data);
+        var dateAndTemp = data.temps[0]; //Because findOne returns table with table inside
+        logUpdate("MongoDB | Get temperature (ID: " + id + " - " + dateAndTemp[1] + ")");
+        callback(dateAndTemp);
       });
     },
     pushTemp: function (id, tempArray) {
       this.collection.update({"id": parseInt(id)}, {$push: {"temps": tempArray}}, function(err, result) {
-        logUpdate(`MongoDB | Pushed temp (ID ${id})`);
+        logUpdate("MongoDB | Pushed temp (ID " + id + ")");
       });
     }
   };
 }
 
 mongo.connect(url, function(err, database) {
+  // assert.equal(null, err);
   db = database;
   setupDB();
   logUpdate("MongoDB | Connected successfully to server");
@@ -144,7 +129,7 @@ mongo.connect(url, function(err, database) {
   tempUpdate();
   setInterval(tempUpdate, UPDATE_TIME);
 
-  gpio.setup(12, gpio.DIR_OUT);
+  gpio.setup(7, gpio.DIR_OUT);
   gpio.setup(11, gpio.DIR_OUT);
   gpio.setup(13, gpio.DIR_OUT, setOff);
 
@@ -152,26 +137,30 @@ mongo.connect(url, function(err, database) {
   var server = app.listen(3000, function (){
     var host = server.address().address;
     var port = server.address().port;
-    logUpdate(`Express | Listening at http://${host}:${port}`);
+    logUpdate('Express | Listening at http://' + host +":" + port);
   });
 });
 
 //Temporary generate temperature
+var diff = [-0.2,-0.1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.1,0.2];
 var UPDATE_TIME = 60000;
 
 function tempUpdate(){
+  logUpdate("------ TEMP UPDATE ------")
+  var now = new Date().getTime();
+  logUpdate("Time: " + now);
   mon.temps.getList(function (thermometers) {
-    let now = new Date().getTime();
-    for(i of thermometers){
-      let therm = i;
-      therms.temperature(therm.device_id, function(err, value) {
-        if(!err){
-          mon.temps.pushTemp(therm.id, [now, value])
-          logUpdate("T" + therm.id + " - " + value);
-        }
-        else{
-          throw err;
-        }
+    for(i in thermometers){
+      let id = parseInt(thermometers[i].id);
+      mon.temps.getTemp(id, function (data) {
+        var temp = data[1];
+        do{
+          temp *= 10;
+          temp += diff[Math.floor(Math.random() * 20)]*10;
+          temp /= 10;
+        }while(temp > 24 || temp < 21);
+        mon.temps.pushTemp( id, [now, temp]);
+        // logUpdate("T" + id + " - " + temp);
       });
     }
   });
@@ -191,13 +180,13 @@ function setOff(){
 function switchPin(pin, newState){
   gpio.write(pin, newState, function(err){
     if(err) throw err;
-    logUpdate(`mHome L | Switched pin ${pin} to ${newState?"ON":"OFF"}`);
+    logUpdate('L | Switched pin ' + pin + ' to '+ (newState?"ON":"OFF"));
   });
 }
 
 //Send rooms list
 app.get('/rooms', function(req, res){
-  logUpdate("mHome R | SENT rooms");
+  logUpdate("R | SENT rooms");
   mon.rooms.getList(function (rooms) {
     res.json(rooms);
   });
@@ -213,19 +202,19 @@ app.get('/temps/', function (req, res){
 //Send temperature by ID
 app.get('/temps/:id', function (req, res){
   mon.temps.getTemp(req.params.id, function(data) {
-    logUpdate(`mHome T | SENT temp of thermometre with id ${req.params.id}`);
-    if(data) res.json(data);
-    else res.status(404).send(`Thermometer with ID ${req.params.id} not found!`);
+    logUpdate('T | SENT temp of thermometre with id ' + req.params.id);
+    res.json(data);
   });
+  // res.status(404).send("Thermometer with ID " + req.params.id + " not found!");
 });
 
 //Send all data by thermometer ID
 app.get('/temps/data/:id', function (req, res) {
    mon.temps.getData(req.params.id, function(data) {
-    logUpdate('mHome T | SENT info of thermometre with id ' + req.params.id);
-    if(data) res.json(data);
-    else res.status(404).send(`Thermometer with ID ${req.params.id} not found!`);
+    logUpdate('T | SENT info of thermometre with id ' + req.params.id);
+    res.json(data);
   });
+  // res.status(404).send("Thermometer with ID " + req.params.id + " not found!");
 });
 
 //Send lights list
@@ -238,29 +227,23 @@ app.get('/lights/', function (req, res){
 //Send state of light by ID
 app.get('/lights/:id', function (req, res){
   mon.lights.getState(req.params.id, function (state) {
-    if(state !== null){
-      logUpdate(`mHome L | SENT state of light ${req.params.id} which is ${state?"ON":"OFF"}`);
-      res.json(state);
-    }else{
-      res.status(404).send(`Light with ID ${req.params.id} not found!`);
-      logUpdate(`mHome L | Light not found (ID: ${req.params.id})`);
-    }
+    logUpdate('L | SENT state of light ' + req.params.id + ' which is ' + (state?"ON":"OFF"));
+    res.json(state);
   });
 });
 
 //Switch light by ID
 app.get('/lights/switch/id/:id', function (req, res){
   mon.lights.getData(req.params.id, function (data) {
-    if(data){
-      let id = req.params.id;
-      let pin = data.pin;
-      let newState = !data.state;
-      switchPin(pin, newState);
-      mon.lights.updateState(id, newState);
-      logUpdate(`mHome L | GOT switch request on light (ID: ${id}, PIN: ${pin}) to ${newState?"ON":"OFF"}`);
-      res.json({state: newState});
-    } else res.status(404).send(`Light with ID ${req.params.id}not found!`);
+    var id = req.params.id;
+    var pin = data.pin;
+    var newState = !data.state;
+    switchPin(pin, newState);
+    mon.lights.updateState(id, newState);
+    logUpdate("L | GOT switch request on light (ID: " + id + ", PIN: " + pin + ') to ' + (newState?"ON":"OFF"));
+    res.json({state: newState});
   });
+  // res.status(404).send("Light with ID " + req.params.id + " not found!");
 });
 
 //Switch lights off by room
@@ -289,7 +272,7 @@ app.get('/lights/switch/off', function(req, res){
     mon.lights.updateAll(false);
     res.json({success: true});
   });
-  logUpdate("mHome A | Switched OFF all lights");
+  logUpdate("A | Switched OFF all lights");
 });
 
 //Close DB Connection (dev-test)

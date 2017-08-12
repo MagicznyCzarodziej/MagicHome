@@ -5,11 +5,11 @@
 		<link rel="stylesheet" type="text/css" href="style.css">
 		<link rel="stylesheet" href="font-awesome.min.css">
 		<link rel="icon" type="image/png" href="img/favicon.png">
-		<meta charset="UTF-8">
-		<meta name="theme-color" content="#212121" />
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 		<script src="cookie.js"></script>
 		<script src="error.js"></script>
+		<meta charset="UTF-8">
+		<meta name="theme-color" content="#212121" />
 	</head>
 	<body>
 		<div id="header"><span><a href="./">MagicHome</a></span>
@@ -17,24 +17,26 @@
 					<li><a href="?settings" class="fa fa-cog" onclick="window.location.reload()"></a></li>
 				</ul>
 		</div>
-		<div id="controls"></div>
+		<div id="controls">
+
+		</div>
 
 		<script>
-			let ip = Cookies.get('API');
-			let refreshTime = Cookies.get('REFRESH_TIME');
+			var ip = Cookies.get('API');
+			var refreshTime = Cookies.get('REFRESH_TIME');
 
 			if(ip == undefined){
 				ip = prompt("Adres API: ", "192.168.100.28");
 				Cookies.set('API', ip, {expires: new Date(9999, 12, 31)});
 			}
-			const API_IP = "http://" + ip + ":3000";
+			var address = "http://" + ip + ":3000";
 
 			if(refreshTime == undefined){
 				refreshTime = 1000;
 				Cookies.set('REFRESH_TIME', refreshTime, {expires: new Date(9999, 12, 31)});
 			}
 
-			let site = window.location.search.substring(1);
+			var site = window.location.search.substring(1);
 			if(site){
 				$("body").append('<script type="text/javascript" src="' + site + '.js"></' + 'script>');
 			}else $("body").append('<script type="text/javascript" src="all.js"></' + 'script>');
