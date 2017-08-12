@@ -5,11 +5,12 @@ function drawRooms(rooms) {
 }
 
 function drawLights(lights) {
-	for(i of lights){
-		let roomID = i.room_id,
-				id = i.id,
-				description = i.description,
-				state = i.state;
+	for(i in lights){
+		let thisLight = lights[i];
+		let roomID = thisLight.room_id,
+				id = thisLight.id,
+				description = thisLight.description,
+				state = thisLight.state;
 
 		let room = $('.group[data-room_id="' + roomID + '"] .group-items');
 		let item = $('<div class="group-item">');
@@ -23,7 +24,7 @@ function drawLights(lights) {
 
 function getTemp(id, callback) {
 	$.ajax({
-		url: API_IP + "/temps/" + id,
+		url: address + "/temps/" + id,
 		success: function (data) {
 			callback(data);
 		}
@@ -31,10 +32,11 @@ function getTemp(id, callback) {
 }
 
 function drawTemps(temps) {
-	for(i of temps){
-		let roomID = i.room_id,
-				id = i.id,
-				description = i.description,
+	for(i in temps){
+		let thisTemp = temps[i];
+		let roomID = thisTemp.room_id,
+				id = thisTemp.id,
+				description = thisTemp.description,
 				temp,
 				tempType;
 
@@ -55,48 +57,91 @@ function drawTemps(temps) {
 	}
 }
 
+/*
+function drawGroups(groups){
+	for(g in groups){
+		//Create empty groups
+		$('#controls').append('<div class="group" data-room="' + groups[g].room + '" data-room_id="' + g + '"><div class="group-head">' + groups[g].room + '<div class="group-head-off"><i class="fa fa-power-off"></i></div></div><div class="group-items"></div></div>');
+
+		for(i in groups[g].items){
+			var item = groups[g].items[i];
+
+			var thisRoom = $('.group[data-room_id="' + g + '"] .group-items');
+			var thisItem = $('<div class="group-item">');
+			thisItem.attr({"title": item.description, "data-id": item.id});
+
+			switch(item.type){
+				case "light":
+					var button = '<i class=" fa fa-lightbulb-o"></i>';
+					thisItem
+						.addClass("light")
+						.attr("data-state", item.state?"on":"off")
+						.html(button);
+					break;
+				case "temp":
+					var temp;
+					if(item.temp < 19) temp = "cold";
+					else if(item.temp < 24) temp = "normal";
+					else temp = "hot";
+					thisItem
+						.addClass("temp")
+						.attr("data-temp", temp)
+						.html("<a href='./temp.html?" + item.id + "'>" + item.temp + "&#176;C</a>");
+					break;
+				default:
+					console.error("Nieprawidłowy typ obiektu (item.type): " + item.type);
+					break;
+			}
+			thisRoom.append(thisItem);
+		}
+	}
+}
+*/
 function drawSwitchAllOff(){
 	$('#controls').append('<div id="all-off"><i class="fa fa-power-off"></i><br><span style="font-family: Orbitron;"> Wylacz wszystkie swiatla</span></div>');
 }
 
-function refreshLights(lights) {
-	for(i of lights){
-		let roomID = i.room_id,
-				id = i.id,
-				state = i.state;
+function drawRefreshed(groups){
+	for(g in groups){
+		for(i in groups[g].items){
+			item = groups[g].items[i];
+			var thisItem = $('.group-item[data-id=' + item.id + ']');
 
-		let room = $('.group[data-room_id="' + roomID + '"] .group-items');
-		let item = $('.group-item[data-id="' + id + '"]');
-		item.attr({"data-state": (state?"on":"off")});
+			switch(item.type){
+				case "light":
+					thisItem.attr("data-state", item.state?"on":"off");
+					break;
+				case "temp":
+					let temp;
+					if(item.temp < 19) temp = "cold";
+					else if(item.temp < 24) temp = "normal";
+					else temp = "hot";
+					thisItem
+						.html("<a href='./temp.html?" + item.id + "'>" + item.temp + "&#176;C</a>")
+						.attr("data-temp", temp);
+					break;
+				default:
+					console.error("Nieprawidłowy typ obiektu (item.type): " + item.type);
+					break;
+			}
+		}
 	}
 }
 
-function refreshTemps(temps) {
-	for(i of temps){
-		let roomID = i.room_id,
-				id = i.id,
-				temp,
-				tempType;
+function getDataFromServer(){
+	// $.ajax({
+	// 	url: address + '/byRoom',
+	// 	success: function(groups){
+	// 		drawGroups(groups);
+	// 		drawSwitchAllOff();
+	// 	}
+	// }).fail(function(){
+	// 	showError("APIconnection");
+	// });
 
-		getTemp(id, function (data) {
-			temp = data[1];
-
-			if(temp < 19) tempType = "cold";
-			else if(temp < 24) tempType = "normal";
-			else tempType = "hot";
-
-			let room = $('.group[data-room_id="' + roomID + '"] .group-items');
-			let item = $('.group-item[data-id="' + id + '"]');
-			item.attr({"data-temp": tempType})
-					.html("<a href='./temp.html?" + id + "'>" + temp + "&#176;C</a>");
-		});
-	}
-}
-
-function prepareRooms() {
 	//Get Rooms
 	$.ajax({
-		url: API_IP + "/rooms",
+		url: address + "/rooms",
 		async: false,
 		success: function (rooms) {
 			drawRooms(rooms);
@@ -104,40 +149,41 @@ function prepareRooms() {
 	}).fail(function(){
 		showError("APIconnection");
 	});
-}
 
-function updateLights(firstTime) {
 	//Get lights
 	$.ajax({
-		url: API_IP + "/lights",
+		url: address + "/lights",
 		async: false,
 		success: function (lights) {
-			if(firstTime) drawLights(lights);
-			else refreshLights(lights);
+			drawLights(lights);
 		}
 	}).fail(function(){
 		showError("APIconnection");
 	});
+
+	//Get temps
+		$.ajax({
+			url: address + "/temps",
+			async: false,
+			success: function (temps) {
+				drawTemps(temps);
+			}
+		}).fail(function(){
+			showError("APIconnection");
+		});
 }
 
-function updateTemps(firstTime) {
-	//Get temps
+function refreshAll(){
 	$.ajax({
-		url: API_IP + "/temps",
-		async: false,
-		success: function (temps) {
-			if(firstTime) drawTemps(temps);
-			else refreshTemps(temps);
-		}
-	}).fail(function(){
-		showError("APIconnection");
+		url: address + '/byRoom',
+		success: drawRefreshed
 	});
 }
 
 function switchLight(thisItem){
-	let id = thisItem.data("id");
+	var id = thisItem.data("id");
 	$.ajax({
-		url: API_IP + '/lights/switch/id/' + id,
+		url: address + '/lights/switch/id/' + id,
 		success: function(res){
 			thisItem.attr("data-state", res.state?"on":"off");
 		}
@@ -145,9 +191,9 @@ function switchLight(thisItem){
 }
 
 function switchRoomOff(thisRoom){
-	let room = thisRoom.parents('.group').data('room_id');
+	var room = thisRoom.parents('.group').data('room_id');
 	$.ajax({
-		url: API_IP + '/lights/switch/room/' + room,
+		url: address + '/lights/switch/room/' + room,
 		success: function(res){
 			thisRoom.parent().siblings().find('.light').attr('data-state', 'off');
 		}
@@ -156,26 +202,18 @@ function switchRoomOff(thisRoom){
 
 function switchAllOff(){
 	$.ajax({
-		url: API_IP + '/lights/switch/off/',
+		url: address + '/lights/switch/off/',
 		success: function(res){
 			$(".light").attr("data-state", "off");
 		}
 	});
 }
 
-function setup() {
-	prepareRooms();
-	updateLights(true);
-	updateTemps(true);
-	drawSwitchAllOff();
-
-	setInterval(updateLights, refreshTime);
-	setInterval(updateTemps, 60*1000);
-}
-
 //READY ---------------------
 $(function() {
-	setup();
+	getDataFromServer();
+	drawSwitchAllOff();
+	//setInterval(refreshAll, refreshTime); // Set auto-refresh
 
 	//Switching light
 	$("#controls").on("click", ".light", function(){
