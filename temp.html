@@ -2,182 +2,24 @@
 <html>
   <head>
     <title>Magic Home | Temperatura</title>
-    <!-- <link rel="stylesheet" type="text/css" href="style.css"> -->
     <link rel="stylesheet" href="font-awesome.min.css">
     <link rel="icon" type="image/png" href="img/favicon.png">
     <meta charset="UTF-8">
     <meta name="theme-color" content="#212121" />
-    <link href="temps.css" rel="stylesheet" type="text/css">
+    <link href="temp.css" rel="stylesheet" type="text/css">
     <script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>
     <script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>
     <script language="javascript" type="text/javascript" src="./flot/jquery.flot.time.js"></script>
     <script language="javascript" type="text/javascript" src="./flot/jquery.flot.selection.js"></script>
     <script language="javascript" type="text/javascript" src="./flot/jquery.flot.crosshair.js"></script>
     <script language="javascript" type="text/javascript" src="./flot/curvedLines.js"></script>
-    <script type="text/javascript">
-      var tempID = window.location.search.substring(1);
-      var data = [];
-      var name = "";
-      var DATE_RANGE = 24 * 60 * 60 * 1000;
-
-      function getXMin() {
-        let now = new Date().getTime();
-        return now - DATE_RANGE;
-      }
-      function getYMin() {
-        var min = 999;
-        let minDate = getXMin();
-        for(i = data.length-1; i > 0; i--){
-          if(data[i][1] < min) min = data[i][1];
-          let time = data[i][0];
-          if(time <= minDate) break;
-        }
-        return min;
-      }
-
-      function getYMax() {
-        let minDate = getXMin();
-        var max = -999;
-        for(i = data.length-1; i > 0; i--){
-          if(data[i][1] > max) max = data[i][1];
-          let time = data[i][0];
-          if(time <= minDate) break;
-        }
-        return max;
-      }
-
-      var options = {
-        series:{
-          curvedLines:{
-            apply: true,
-            active: true,
-            monotonicFit: true
-          }
-        },
-        lines:{
-            fill: 0.6,
-            steps: false
-        },
-        xaxis:{
-          mode: "time",
-          timezone: "browser",
-          timeformat: "%H:%M",
-          tickSize: [2, "hour"],
-          tickColor: '#32383E',
-          font: {color: '#aab5bd', size: 20}
-        },
-        yaxis:{
-          tickSize: 0.5,
-          tickDecimals: 1,
-          tickColor: '#32383E',
-          font: {color: '#aab5bd', size: 20}
-        },
-        selection: {
-          mode: "x"
-        },
-        crosshair: {
-  				mode: "x"
-  			},
-        grid:{
-          backgroundColor: "#272b30",
-          hoverable: true,
-          labelMargin: 10
-        },
-        colors: ["#1977c3"]//2ecc71
-      };
-
-      const UPDATE_TIME = 60000;
-
-      function getDataFromServer() {
-        $.ajax({
-          url: "http://192.168.100.28:3000/temps/" + tempID,
-          type: 'GET',
-          async: false,
-          success: function(temp){
-            if(temp[0] != data[data.length-1][0]) data.push(temp);
-          },
-          error: function(error) {
-            console.error(error.responseText);
-          }
-      });
-      }
-
-      function updateChart() {
-        getDataFromServer();
-        $("#temp").html(data[data.length-1][1] + "&#176;C"); // Update temp next to thermometer's name
-        Yminimum = getYMin()-0.3;
-        options.yaxis.min = Yminimum;
-        options.xaxis.min = getXMin();
-        plot = $.plot($("#chart"), [data], options);
-        setTimeout(updateChart, UPDATE_TIME);
-      }
-
-      function last() {
-          var lastUpdateTime = data[data.length-1][0] / 1000;
-          var now = new Date().getTime() / 1000;
-          var ago = parseInt(now - lastUpdateTime);
-          var text = "";
-          var minutes = Math.floor(ago / 60);
-          if(minutes > 0){
-            text = minutes + "min. ";
-          }
-          var seconds = ago - minutes * 60;
-          if(seconds > 0){
-            text += seconds + "s. ";
-          }
-          text += "temu.";
-
-          $('#last-update').html("Ostatni pomiar " +  text);
-          setTimeout(last,5000);
-      }
-
-      $(function() {
-        $.ajax({
-          url: "http://192.168.100.28:3000" + "/temps/data/" + tempID,
-          async: false,
-          success: function(res){
-            name = res.description;
-            data = res.temps;
-            lastTemp = data[data.length-1][1];
-            $("#chart-name").html(name);
-            $("#temp").html(lastTemp + "&#176;C");
-
-            updateChart();
-            last();
-          },
-          error: function (error) {
-            $("#chart-name").html("Nieprawidlowe ID");
-            console.error(error.responseText);
-          }
-        });
-
-        //Zooming
-        $("#chart").bind("plotselected", function (event, ranges) {
-          $.each(plot.getXAxes(), function(_, axis) {
-            var opts = axis.options;
-            opts.min = ranges.xaxis.from;
-            opts.max = ranges.xaxis.to;
-          });
-          plot.setupGrid();
-          plot.draw();
-          plot.clearSelection();
-        });
-
-        //Hovering
-        $("#chart").bind("plothover", function (event, pos, item) {
-          if(item){
-            var y = item.datapoint[1].toFixed(1);
-            $("#hovered-temp").html(y + "&#176;C").css({top: item.pageY-10});
-          }else{
-            $("#hovered-temp").html("");
-          }
-        });
-
-      });
-    </script>
+    <script src="cookie.js"></script>
+    <script src="temp.js"></script>
   </head>
   <body>
-    <div id="header"><span><a href="./">MagicHome</a></span></div>
+    <div id="header">
+      <span><a href="./">MagicHome</a></span>
+    </div>
 		<div class="chart-container">
       <div id="chart-header"><span id="chart-name"></span> <span id="temp"></span><span id="last-update"></span></div>
       <div id="chart-box">
@@ -185,6 +27,5 @@
       </div>
 		</div>
     <div id="hovered-temp"></div>
-
   </body>
 </html>

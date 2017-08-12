@@ -23,7 +23,7 @@ function drawLights(lights) {
 
 function getTemp(id, callback) {
 	$.ajax({
-		url: address + "/temps/" + id,
+		url: API_IP + "/temps/" + id,
 		success: function (data) {
 			callback(data);
 		}
@@ -96,7 +96,7 @@ function refreshTemps(temps) {
 function prepareRooms() {
 	//Get Rooms
 	$.ajax({
-		url: address + "/rooms",
+		url: API_IP + "/rooms",
 		async: false,
 		success: function (rooms) {
 			drawRooms(rooms);
@@ -109,7 +109,7 @@ function prepareRooms() {
 function updateLights(firstTime) {
 	//Get lights
 	$.ajax({
-		url: address + "/lights",
+		url: API_IP + "/lights",
 		async: false,
 		success: function (lights) {
 			if(firstTime) drawLights(lights);
@@ -123,7 +123,7 @@ function updateLights(firstTime) {
 function updateTemps(firstTime) {
 	//Get temps
 	$.ajax({
-		url: address + "/temps",
+		url: API_IP + "/temps",
 		async: false,
 		success: function (temps) {
 			if(firstTime) drawTemps(temps);
@@ -137,7 +137,7 @@ function updateTemps(firstTime) {
 function switchLight(thisItem){
 	let id = thisItem.data("id");
 	$.ajax({
-		url: address + '/lights/switch/id/' + id,
+		url: API_IP + '/lights/switch/id/' + id,
 		success: function(res){
 			thisItem.attr("data-state", res.state?"on":"off");
 		}
@@ -147,7 +147,7 @@ function switchLight(thisItem){
 function switchRoomOff(thisRoom){
 	let room = thisRoom.parents('.group').data('room_id');
 	$.ajax({
-		url: address + '/lights/switch/room/' + room,
+		url: API_IP + '/lights/switch/room/' + room,
 		success: function(res){
 			thisRoom.parent().siblings().find('.light').attr('data-state', 'off');
 		}
@@ -156,7 +156,7 @@ function switchRoomOff(thisRoom){
 
 function switchAllOff(){
 	$.ajax({
-		url: address + '/lights/switch/off/',
+		url: API_IP + '/lights/switch/off/',
 		success: function(res){
 			$(".light").attr("data-state", "off");
 		}
